@@ -2,33 +2,6 @@
     "name": "@enormora/clock",
     "version": "0.0.1",
     "type": "module",
-    "description": "Explicit time and timer access for TypeScript applications",
-    "main": "target/build/source/index.js",
-    "types": "target/build/source/index.d.ts",
-    "exports": {
-        ".": {
-            "types": "./target/build/source/index.d.ts",
-            "import": "./target/build/source/index.js"
-        },
-        "./clock": {
-            "types": "./target/build/source/clock.d.ts",
-            "import": "./target/build/source/clock.js"
-        },
-        "./deterministic-clock": {
-            "types": "./target/build/source/deterministic-clock.d.ts",
-            "import": "./target/build/source/deterministic-clock.js"
-        },
-        "./temporal-clock": {
-            "types": "./target/build/source/temporal-clock.d.ts",
-            "import": "./target/build/source/temporal-clock.js"
-        }
-    },
-    "files": [
-        "target/build/source/",
-        "!target/build/source/**/*.test.js",
-        "!target/build/source/**/*.d.ts.map",
-        "!target/build/source/**/*.map"
-    ],
     "keywords": [
         "clock",
         "deterministic",
@@ -36,8 +9,7 @@
         "test",
         "time",
         "timer",
-        "typescript",
-        "clock"
+        "typescript"
     ],
     "author": "Christian Rackerseder <git@echooff.de>",
     "license": "MIT",

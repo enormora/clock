@@ -102,11 +102,11 @@ export async function buildConfig() {
             },
             additionalFiles: [
                 {
-                    sourceFilePath: path.join(projectFolder, 'LICENSE'),
+                    inputFilePath: path.join(projectFolder, 'LICENSE'),
                     targetFilePath: 'LICENSE'
                 },
                 {
-                    sourceFilePath: path.join(projectFolder, 'README.md'),
+                    inputFilePath: path.join(projectFolder, 'README.md'),
                     targetFilePath: 'README.md'
                 }
             ]
@@ -114,6 +114,9 @@ export async function buildConfig() {
         packages: [
             {
                 name: packageJson.name,
+                additionalPackageJsonAttributes: {
+                    description: 'Explicit time and timer access for TypeScript applications'
+                },
                 roots: packageRoots,
                 packageInterface
             }
