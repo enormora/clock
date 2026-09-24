@@ -11,12 +11,12 @@ const packageRoots = {
         declarationFile: 'index.d.ts'
     },
     clock: {
-        js: 'clock.js',
-        declarationFile: 'clock.d.ts'
+        js: 'clock.entry-point.js',
+        declarationFile: 'clock.entry-point.d.ts'
     },
     temporalClock: {
-        js: 'temporal-clock.js',
-        declarationFile: 'temporal-clock.d.ts'
+        js: 'temporal-clock.entry-point.js',
+        declarationFile: 'temporal-clock.entry-point.d.ts'
     },
     deterministicClock: {
         js: 'deterministic-clock.js',

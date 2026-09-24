@@ -191,6 +191,17 @@ The deterministic clock rejects intervals that would round down to zero microsec
 ## API
 
 ```ts
+declare const timeoutIdentifierBrand: unique symbol;
+declare const intervalIdentifierBrand: unique symbol;
+
+export type TimeoutIdentifier = {
+    readonly [timeoutIdentifierBrand]: 'TimeoutIdentifier';
+};
+
+export type IntervalIdentifier = {
+    readonly [intervalIdentifierBrand]: 'IntervalIdentifier';
+};
+
 export type Clock = {
     readonly currentDate: Date;
     readonly currentUnixEpochMilliseconds: number;
@@ -201,14 +212,14 @@ export type Clock = {
         handler: (...handlerArguments: HandlerArguments) => void,
         delayInMilliseconds: number,
         ...handlerArguments: HandlerArguments
-    ) => ReturnType<typeof globalThis.setTimeout>;
-    readonly clearTimeout: (timeoutIdentifier: ReturnType<typeof globalThis.setTimeout>) => void;
+    ) => TimeoutIdentifier;
+    readonly clearTimeout: (timeoutIdentifier: TimeoutIdentifier) => void;
     readonly setInterval: <HandlerArguments extends readonly unknown[]>(
         handler: (...handlerArguments: HandlerArguments) => void,
         delayInMilliseconds: number,
         ...handlerArguments: HandlerArguments
-    ) => ReturnType<typeof globalThis.setInterval>;
-    readonly clearInterval: (intervalIdentifier: ReturnType<typeof globalThis.setInterval>) => void;
+    ) => IntervalIdentifier;
+    readonly clearInterval: (intervalIdentifier: IntervalIdentifier) => void;
 };
 ```
 
