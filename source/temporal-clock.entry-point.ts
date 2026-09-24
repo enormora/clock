@@ -16,14 +16,18 @@ type TemporalClockApi = {
     };
 };
 
+type TemporalRuntimeGlobal = Readonly<typeof globalThis> & {
+    readonly Temporal?: TemporalClockApi;
+};
+
 function readTemporalClockApi(): TemporalClockApi {
-    const temporalClockApi = Reflect.get(globalThis, 'Temporal') as unknown;
+    const temporalClockApi = (globalThis as TemporalRuntimeGlobal).Temporal;
 
     if (temporalClockApi === undefined) {
         throw new ReferenceError('Temporal is not available');
     }
 
-    return temporalClockApi as TemporalClockApi;
+    return temporalClockApi;
 }
 
 export function createTemporalClock(): Clock {
