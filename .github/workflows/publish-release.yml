@@ -57,7 +57,7 @@ jobs:
                         --raw-output \
                         '(.merged == true) and
                          (.merged_at != null) and
-                         (.head.ref == "release/wall-clock") and
+                         (.head.ref == "release/clock") and
                          (.head.repo.full_name == $repository) and
                          (.base.ref == "main") and
                          (.title == "Prepare release")' \
@@ -93,7 +93,7 @@ jobs:
                       '[.[] |
                         select(
                           (.merged_at != null) and
-                          (.head.ref == "release/wall-clock") and
+                          (.head.ref == "release/clock") and
                           (.head.repo.full_name == $repository) and
                           (.base.ref == "main") and
                           (.title == "Prepare release")

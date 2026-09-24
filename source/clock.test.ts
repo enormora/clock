@@ -2,33 +2,65 @@ import assert from 'node:assert';
 import timers from 'node:timers/promises';
 import { suite, test } from 'mocha';
 
-import { createWallClock } from './wall-clock.ts';
+import { createClock } from './clock.ts';
 
-suite('wall clock', () => {
-    test('real wall clock returns the current timestamp in milliseconds', function () {
+suite('clock', () => {
+    test('returns the current Unix epoch timestamp in milliseconds', function () {
         const lowerTimestampBound = Date.now();
-        const wallClock = createWallClock();
+        const clock = createClock();
 
-        const actualCurrentTimestampInMilliseconds = wallClock.currentTimestampInMilliseconds;
+        const actualCurrentUnixEpochMilliseconds = clock.currentUnixEpochMilliseconds;
 
         const upperTimestampBound = Date.now();
-        assert.strictEqual(typeof actualCurrentTimestampInMilliseconds, 'number');
-        assert.strictEqual(actualCurrentTimestampInMilliseconds >= lowerTimestampBound, true);
-        assert.strictEqual(actualCurrentTimestampInMilliseconds <= upperTimestampBound, true);
+        assert.strictEqual(typeof actualCurrentUnixEpochMilliseconds, 'number');
+        assert.strictEqual(actualCurrentUnixEpochMilliseconds >= lowerTimestampBound, true);
+        assert.strictEqual(actualCurrentUnixEpochMilliseconds <= upperTimestampBound, true);
     });
 
-    test('real wall clock returns a new current date instance', async function () {
-        const wallClock = createWallClock();
+    test('returns the current Unix epoch timestamp in microseconds', function () {
+        const lowerTimestampBound = BigInt(Date.now()) * 1000n;
+        const clock = createClock();
 
-        const firstCurrentDate = wallClock.currentDate;
+        const actualCurrentUnixEpochMicroseconds = clock.currentUnixEpochMicroseconds;
+
+        const upperTimestampBound = BigInt(Date.now()) * 1000n;
+        assert.strictEqual(typeof actualCurrentUnixEpochMicroseconds, 'bigint');
+        assert.strictEqual(actualCurrentUnixEpochMicroseconds >= lowerTimestampBound, true);
+        assert.strictEqual(actualCurrentUnixEpochMicroseconds <= upperTimestampBound, true);
+        assert.strictEqual(actualCurrentUnixEpochMicroseconds % 1000n, 0n);
+    });
+
+    test('returns a new current date instance', async function () {
+        const clock = createClock();
+
+        const firstCurrentDate = clock.currentDate;
         await timers.setTimeout(1);
-        const secondCurrentDate = wallClock.currentDate;
+        const secondCurrentDate = clock.currentDate;
 
         assert.notStrictEqual(firstCurrentDate, secondCurrentDate);
         assert.strictEqual(secondCurrentDate.getTime() >= firstCurrentDate.getTime(), true);
     });
 
-    test('real wall clock binds setTimeout to globalThis', () => {
+    test('returns monotonic time origin in Unix epoch microseconds', function () {
+        const clock = createClock();
+        const expectedTimeOrigin = BigInt(Math.floor(globalThis.performance.timeOrigin * 1000));
+
+        assert.strictEqual(clock.monotonicTimeOriginUnixEpochMicroseconds, expectedTimeOrigin);
+    });
+
+    test('returns current monotonic time in microseconds', function () {
+        const lowerTimestampBound = BigInt(Math.floor(globalThis.performance.now() * 1000));
+        const clock = createClock();
+
+        const actualCurrentMonotonicMicroseconds = clock.currentMonotonicMicroseconds;
+
+        const upperTimestampBound = BigInt(Math.floor(globalThis.performance.now() * 1000));
+        assert.strictEqual(typeof actualCurrentMonotonicMicroseconds, 'bigint');
+        assert.strictEqual(actualCurrentMonotonicMicroseconds >= lowerTimestampBound, true);
+        assert.strictEqual(actualCurrentMonotonicMicroseconds <= upperTimestampBound, true);
+    });
+
+    test('binds setTimeout to globalThis', () => {
         const originalSetTimeout = globalThis.setTimeout;
         const timeoutIdentifier = 123 as unknown as ReturnType<typeof globalThis.setTimeout>;
         const invocationContexts: unknown[] = [];
@@ -41,9 +73,9 @@ suite('wall clock', () => {
         globalThis.setTimeout = setTimeoutStub as unknown as typeof globalThis.setTimeout;
 
         try {
-            const wallClock = createWallClock();
+            const clock = createClock();
 
-            const actualTimeoutIdentifier = wallClock.setTimeout(function () {
+            const actualTimeoutIdentifier = clock.setTimeout(function () {
                 return undefined;
             }, 1);
 
@@ -54,7 +86,7 @@ suite('wall clock', () => {
         }
     });
 
-    test('real wall clock binds clearTimeout to globalThis', () => {
+    test('binds clearTimeout to globalThis', () => {
         const originalClearTimeout = globalThis.clearTimeout;
         const timeoutIdentifier = 123 as unknown as ReturnType<typeof globalThis.setTimeout>;
         const invocationContexts: unknown[] = [];
@@ -68,9 +100,9 @@ suite('wall clock', () => {
         globalThis.clearTimeout = clearTimeoutStub as unknown as typeof globalThis.clearTimeout;
 
         try {
-            const wallClock = createWallClock();
+            const clock = createClock();
 
-            wallClock.clearTimeout(timeoutIdentifier);
+            clock.clearTimeout(timeoutIdentifier);
 
             assert.strictEqual(invocationContexts[0], globalThis);
             assert.deepStrictEqual(actualTimeoutIdentifiers, [ timeoutIdentifier ]);
@@ -79,7 +111,7 @@ suite('wall clock', () => {
         }
     });
 
-    test('real wall clock binds setInterval to globalThis', () => {
+    test('binds setInterval to globalThis', () => {
         const originalSetInterval = globalThis.setInterval;
         const intervalIdentifier = 123 as unknown as ReturnType<typeof globalThis.setInterval>;
         const invocationContexts: unknown[] = [];
@@ -92,9 +124,9 @@ suite('wall clock', () => {
         globalThis.setInterval = setIntervalStub as unknown as typeof globalThis.setInterval;
 
         try {
-            const wallClock = createWallClock();
+            const clock = createClock();
 
-            const actualIntervalIdentifier = wallClock.setInterval(function () {
+            const actualIntervalIdentifier = clock.setInterval(function () {
                 return undefined;
             }, 1);
 
@@ -105,7 +137,7 @@ suite('wall clock', () => {
         }
     });
 
-    test('real wall clock binds clearInterval to globalThis', () => {
+    test('binds clearInterval to globalThis', () => {
         const originalClearInterval = globalThis.clearInterval;
         const intervalIdentifier = 123 as unknown as ReturnType<typeof globalThis.setInterval>;
         const invocationContexts: unknown[] = [];
@@ -122,9 +154,9 @@ suite('wall clock', () => {
         globalThis.clearInterval = clearIntervalStub as unknown as typeof globalThis.clearInterval;
 
         try {
-            const wallClock = createWallClock();
+            const clock = createClock();
 
-            wallClock.clearInterval(intervalIdentifier);
+            clock.clearInterval(intervalIdentifier);
 
             assert.strictEqual(invocationContexts[0], globalThis);
             assert.deepStrictEqual(actualIntervalIdentifiers, [ intervalIdentifier ]);

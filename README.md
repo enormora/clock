@@ -1,107 +1,136 @@
-# @enormora/wall-clock
+# @enormora/clock
 
-Explicit wall-clock time access for TypeScript applications.
+Explicit time and timer access for TypeScript applications.
 
-`@enormora/wall-clock` provides a small boundary around time-related side effects:
+`@enormora/clock` provides a small dependency-injection boundary around time-related side effects:
 
-- reading the current timestamp
-- creating the current `Date`
+- reading wall time as `Date`, Unix epoch milliseconds, or Unix epoch microseconds
+- reading monotonic time and its Unix epoch origin
 - scheduling and clearing timeouts
 - scheduling and clearing intervals
 - replacing real time with a deterministic clock in tests
 
-The package is intentionally small. It is meant to make time an explicit dependency instead of letting application code
-call `Date.now()`, `new Date()`, `setTimeout`, or `setInterval` directly.
+It is not a date-time utility library or a general scheduler framework. The package keeps time access explicit so
+application code does not need to call `Date.now()`, `new Date()`, `performance.now()`, `setTimeout`, or `setInterval`
+directly.
 
 ## Installation
 
 ```sh
-npm install @enormora/wall-clock
+npm install @enormora/clock
 ```
 
 The package is ESM-only and requires Node.js `^24.15.0 || ^26.0.0`.
 
-The root export keeps both clocks available from one import. Prefer the explicit module subpaths when code only needs one
+The root export keeps all clocks available from one import. Prefer explicit module subpaths when code only needs one
 clock:
 
-- `@enormora/wall-clock/wall-clock`
-- `@enormora/wall-clock/deterministic-wall-clock`
+- `@enormora/clock/clock`
+- `@enormora/clock/temporal-clock`
+- `@enormora/clock/deterministic-clock`
 
-## Real wall clock
+## Real Clock
 
-Use `createWallClock()` at the application boundary and pass the resulting `WallClock` into code that needs time.
+Use `createClock()` at the application boundary and pass the resulting `Clock` into code that needs time.
 
 ```ts
-import { createWallClock } from '@enormora/wall-clock/wall-clock';
+import { createClock } from '@enormora/clock/clock';
 
-const wallClock = createWallClock();
+const clock = createClock();
 
-console.log(wallClock.currentTimestampInMilliseconds);
-console.log(wallClock.currentDate.toISOString());
+console.log(clock.currentUnixEpochMilliseconds);
+console.log(clock.currentUnixEpochMicroseconds);
+console.log(clock.currentDate.toISOString());
 ```
 
 The real clock delegates to the runtime:
 
-- `currentTimestampInMilliseconds` uses `Date.now()`
 - `currentDate` returns a new `Date`
-- `setTimeout` and `clearTimeout` call `globalThis`
-- `setInterval` and `clearInterval` call `globalThis`
+- `currentUnixEpochMilliseconds` uses `Date.now()`
+- `currentUnixEpochMicroseconds` uses `Date.now() * 1000n`
+- `monotonicTimeOriginUnixEpochMicroseconds` uses `performance.timeOrigin`
+- `currentMonotonicMicroseconds` uses `performance.now()`
+- timer functions call `globalThis`
 
-The timer functions are bound to `globalThis`, so they can be passed around safely.
+`currentUnixEpochMicroseconds` communicates the unit, not a guaranteed resolution. Date-backed clocks expose
+millisecond-resolution wall time in microseconds.
 
-## Dependency injection
+## Temporal Clock
 
-Prefer accepting a `WallClock` as an explicit dependency for code that depends on time.
+Use `createTemporalClock()` when the runtime provides `Temporal`.
 
 ```ts
-import type { WallClock } from '@enormora/wall-clock/wall-clock';
+import { createTemporalClock } from '@enormora/clock/temporal-clock';
+
+const clock = createTemporalClock();
+
+console.log(clock.currentUnixEpochMicroseconds);
+```
+
+The Temporal clock implements the same `Clock` interface. It uses `Temporal.Now.instant()` for wall time and
+`performance` for monotonic time. Importing the module works without Temporal, but calling `createTemporalClock()`
+throws when `globalThis.Temporal` is unavailable.
+
+## Dependency Injection
+
+Prefer accepting a `Clock` as an explicit dependency for code that depends on time.
+
+```ts
+import type { Clock } from '@enormora/clock/clock';
 
 type Session = {
-    readonly expiresAtTimestampInMilliseconds: number;
+    readonly expiresAtUnixEpochMilliseconds: number;
 };
 
-export function isSessionExpired(wallClock: WallClock, session: Session): boolean {
-    return wallClock.currentTimestampInMilliseconds >= session.expiresAtTimestampInMilliseconds;
+export function isSessionExpired(clock: Clock, session: Session): boolean {
+    return clock.currentUnixEpochMilliseconds >= session.expiresAtUnixEpochMilliseconds;
 }
 ```
 
-This keeps the core behavior deterministic and easy to test.
+Use wall time for calendar time, storage, and user-facing timestamps. Use monotonic values for elapsed time and
+durations.
 
-## Deterministic wall clock
+## Deterministic Clock
 
-Use `createDeterministicWallClock()` in tests or deterministic environments.
+Use `createDeterministicClock()` in tests or deterministic environments.
 
 ```ts
-import { createDeterministicWallClock } from '@enormora/wall-clock/deterministic-wall-clock';
+import { createDeterministicClock } from '@enormora/clock/deterministic-clock';
 
-const wallClock = createDeterministicWallClock({
-    initialCurrentTimestampInMilliseconds: 1_704_067_200_000
+const clock = createDeterministicClock({
+    initialUnixEpochMicroseconds: 1_704_067_200_000_000n
 });
 
-console.log(wallClock.currentDate.toISOString());
+console.log(clock.currentDate.toISOString());
 
-wallClock.advanceByMilliseconds(1000);
+clock.advanceByMilliseconds(1000);
 
-console.log(wallClock.currentTimestampInMilliseconds);
+console.log(clock.currentUnixEpochMilliseconds);
 ```
 
-The deterministic clock implements the same `WallClock` interface and adds:
+The deterministic clock implements the same `Clock` interface and adds:
 
-- `setCurrentTimestampInMilliseconds(nextTimestampInMilliseconds)`
+- `setCurrentUnixEpochMicroseconds(nextUnixEpochMicroseconds)`
+- `advanceByMicroseconds(delayInMicroseconds)`
 - `advanceByMilliseconds(delayInMilliseconds)`
 
-## Testing timers
+Wall time and monotonic time are stored in microseconds. Timers are scheduled against monotonic time, so setting wall
+time does not run or delay timers.
 
-The deterministic clock runs scheduled callbacks when time is advanced far enough.
+## Testing Timers
+
+The deterministic clock runs scheduled callbacks when monotonic time is advanced far enough.
 
 ```ts
 import assert from 'node:assert';
-import { createDeterministicWallClock } from '@enormora/wall-clock/deterministic-wall-clock';
+import { createDeterministicClock } from '@enormora/clock/deterministic-clock';
 
-const wallClock = createDeterministicWallClock();
+const clock = createDeterministicClock({
+    initialUnixEpochMicroseconds: 0n
+});
 const calls: string[] = [];
 
-wallClock.setTimeout(
+clock.setTimeout(
     (value) => {
         calls.push(value);
     },
@@ -109,10 +138,10 @@ wallClock.setTimeout(
     'done'
 );
 
-wallClock.advanceByMilliseconds(99);
+clock.advanceByMilliseconds(99);
 assert.deepStrictEqual(calls, []);
 
-wallClock.advanceByMilliseconds(1);
+clock.advanceByMilliseconds(1);
 assert.deepStrictEqual(calls, [ 'done' ]);
 ```
 
@@ -120,31 +149,33 @@ Intervals run once for each elapsed interval.
 
 ```ts
 import assert from 'node:assert';
-import { createDeterministicWallClock } from '@enormora/wall-clock/deterministic-wall-clock';
+import { createDeterministicClock } from '@enormora/clock/deterministic-clock';
 
-const wallClock = createDeterministicWallClock();
+const clock = createDeterministicClock({
+    initialUnixEpochMicroseconds: 0n
+});
 let count = 0;
 
-const intervalIdentifier = wallClock.setInterval(() => {
+const intervalIdentifier = clock.setInterval(() => {
     count += 1;
 }, 100);
 
-wallClock.advanceByMilliseconds(250);
+clock.advanceByMilliseconds(250);
 assert.strictEqual(count, 2);
 
-wallClock.clearInterval(intervalIdentifier);
-wallClock.advanceByMilliseconds(500);
+clock.clearInterval(intervalIdentifier);
+clock.advanceByMilliseconds(500);
 assert.strictEqual(count, 2);
 ```
 
-## Timer behavior
+## Timer Behavior
 
 Timeouts:
 
 - execute once
-- execute only after the clock reaches their scheduled timestamp
-- execute in scheduled timestamp order
-- execute in registration order when multiple timeouts share the same scheduled timestamp
+- execute only after the clock reaches their scheduled monotonic time
+- execute in scheduled monotonic time order
+- execute in registration order when multiple timeouts share the same scheduled time
 - can use a delay of `0`
 - reject negative and non-finite delays
 
@@ -153,17 +184,19 @@ Intervals:
 - execute repeatedly
 - execute once per elapsed interval when time advances
 - stop after `clearInterval`
-- reject `0`, negative, and non-finite delays
+- reject `0`, negative, non-finite, and sub-microsecond delays
 
-The deterministic clock intentionally rejects zero-delay intervals because they cannot advance safely without creating an
-infinite loop.
+The deterministic clock rejects intervals that would round down to zero microseconds because they cannot advance safely.
 
 ## API
 
 ```ts
-export type WallClock = {
-    readonly currentTimestampInMilliseconds: number;
+export type Clock = {
     readonly currentDate: Date;
+    readonly currentUnixEpochMilliseconds: number;
+    readonly currentUnixEpochMicroseconds: bigint;
+    readonly monotonicTimeOriginUnixEpochMicroseconds: bigint;
+    readonly currentMonotonicMicroseconds: bigint;
     readonly setTimeout: <HandlerArguments extends readonly unknown[]>(
         handler: (...handlerArguments: HandlerArguments) => void,
         delayInMilliseconds: number,
@@ -180,20 +213,25 @@ export type WallClock = {
 ```
 
 ```ts
-export type DeterministicWallClock = WallClock & {
-    readonly setCurrentTimestampInMilliseconds: (nextTimestampInMilliseconds: number) => void;
+export type DeterministicClock = Clock & {
+    readonly setCurrentUnixEpochMicroseconds: (nextUnixEpochMicroseconds: bigint) => void;
+    readonly advanceByMicroseconds: (delayInMicroseconds: bigint) => void;
     readonly advanceByMilliseconds: (delayInMilliseconds: number) => void;
 };
 ```
 
 ```ts
-export function createWallClock(): WallClock;
+export function createClock(): Clock;
 ```
 
 ```ts
-export function createDeterministicWallClock(options?: {
-    readonly initialCurrentTimestampInMilliseconds?: number;
-}): DeterministicWallClock;
+export function createTemporalClock(): Clock;
+```
+
+```ts
+export function createDeterministicClock(options: {
+    readonly initialUnixEpochMicroseconds: bigint;
+}): DeterministicClock;
 ```
 
 ## Development
@@ -260,31 +298,3 @@ Inspect the next release plan:
 ```sh
 just release-plan
 ```
-
-Show what would change compared to the latest published package:
-
-```sh
-just release-diff
-```
-
-Generate or update the configured changelog output:
-
-```sh
-just changelog
-```
-
-Prepare a changelog commit:
-
-```sh
-just prepare-release
-```
-
-Publish, tag, push tags, and create GitHub Releases:
-
-```sh
-just publish-release
-```
-
-## License
-
-MIT

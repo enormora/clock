@@ -1,6 +1,11 @@
-export type WallClock = {
-    readonly currentTimestampInMilliseconds: number;
+const microsecondsPerMillisecond = 1000n;
+
+export type Clock = {
     readonly currentDate: Date;
+    readonly currentUnixEpochMilliseconds: number;
+    readonly currentUnixEpochMicroseconds: bigint;
+    readonly monotonicTimeOriginUnixEpochMicroseconds: bigint;
+    readonly currentMonotonicMicroseconds: bigint;
     readonly setTimeout: <HandlerArguments extends readonly unknown[]>(
         handler: (...handlerArguments: HandlerArguments) => void,
         delayInMilliseconds: number,
@@ -15,14 +20,34 @@ export type WallClock = {
     readonly clearInterval: (intervalIdentifier: ReturnType<typeof globalThis.setInterval>) => void;
 };
 
-export function createWallClock(): WallClock {
+function millisecondsToMicroseconds(milliseconds: number): bigint {
+    return BigInt(Math.floor(milliseconds * Number(microsecondsPerMillisecond)));
+}
+
+function performanceNowInMicroseconds(): bigint {
+    return BigInt(Math.floor(globalThis.performance.now() * Number(microsecondsPerMillisecond)));
+}
+
+export function createClock(): Clock {
     return {
-        get currentTimestampInMilliseconds() {
+        get currentDate() {
+            return new Date();
+        },
+
+        get currentUnixEpochMilliseconds() {
             return Date.now();
         },
 
-        get currentDate() {
-            return new Date();
+        get currentUnixEpochMicroseconds() {
+            return millisecondsToMicroseconds(Date.now());
+        },
+
+        get monotonicTimeOriginUnixEpochMicroseconds() {
+            return millisecondsToMicroseconds(globalThis.performance.timeOrigin);
+        },
+
+        get currentMonotonicMicroseconds() {
+            return performanceNowInMicroseconds();
         },
 
         setTimeout: globalThis.setTimeout.bind(globalThis),

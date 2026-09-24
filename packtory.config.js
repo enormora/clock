@@ -10,21 +10,26 @@ const packageRoots = {
         js: 'index.js',
         declarationFile: 'index.d.ts'
     },
-    wallClock: {
-        js: 'wall-clock.js',
-        declarationFile: 'wall-clock.d.ts'
+    clock: {
+        js: 'clock.js',
+        declarationFile: 'clock.d.ts'
     },
-    deterministicWallClock: {
-        js: 'deterministic-wall-clock.js',
-        declarationFile: 'deterministic-wall-clock.d.ts'
+    temporalClock: {
+        js: 'temporal-clock.js',
+        declarationFile: 'temporal-clock.d.ts'
+    },
+    deterministicClock: {
+        js: 'deterministic-clock.js',
+        declarationFile: 'deterministic-clock.d.ts'
     }
 };
 
 const packageInterface = {
     modules: [
         { root: 'main', export: '.' },
-        { root: 'wallClock', export: './wall-clock' },
-        { root: 'deterministicWallClock', export: './deterministic-wall-clock' }
+        { root: 'clock', export: './clock' },
+        { root: 'temporalClock', export: './temporal-clock' },
+        { root: 'deterministicClock', export: './deterministic-clock' }
     ]
 };
 
@@ -97,11 +102,11 @@ export async function buildConfig() {
             },
             additionalFiles: [
                 {
-                    sourceFilePath: path.join(projectFolder, 'LICENSE'),
+                    inputFilePath: path.join(projectFolder, 'LICENSE'),
                     targetFilePath: 'LICENSE'
                 },
                 {
-                    sourceFilePath: path.join(projectFolder, 'README.md'),
+                    inputFilePath: path.join(projectFolder, 'README.md'),
                     targetFilePath: 'README.md'
                 }
             ]
@@ -109,6 +114,9 @@ export async function buildConfig() {
         packages: [
             {
                 name: packageJson.name,
+                additionalPackageJsonAttributes: {
+                    description: 'Explicit time and timer access for TypeScript applications'
+                },
                 roots: packageRoots,
                 packageInterface
             }
