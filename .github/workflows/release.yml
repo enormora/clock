@@ -20,8 +20,8 @@ jobs:
         env:
             GH_TOKEN: ${{ github.token }}
             GITHUB_TOKEN: ${{ github.token }}
-            RELEASE_BRANCH: release/wall-clock
-            RELEASE_PR_BODY: Updates CHANGELOG.md for the next @enormora/wall-clock release.
+            RELEASE_BRANCH: release/clock
+            RELEASE_PR_BODY: Updates CHANGELOG.md for the next @enormora/clock release.
             RELEASE_PR_TITLE: Prepare release
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

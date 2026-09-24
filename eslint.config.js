@@ -59,7 +59,7 @@ export default [
         }
     },
     {
-        files: [ 'source/wall-clock.ts' ],
+        files: [ 'source/clock.ts', 'source/temporal-clock.ts' ],
         rules: {
             'node/prefer-global/timers': 'off'
         }
@@ -88,7 +88,12 @@ export default [
         }
     },
     {
-        files: [ 'source/wall-clock.ts', 'source/wall-clock.test.ts' ],
+        files: [
+            'source/clock.ts',
+            'source/clock.test.ts',
+            'source/temporal-clock.ts',
+            'source/temporal-clock.test.ts'
+        ],
         rules: {
             'unicorn/no-global-object-property-assignment': 'off',
             'unicorn/no-unnecessary-global-this': 'off'
