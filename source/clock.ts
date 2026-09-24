@@ -1,5 +1,16 @@
 const microsecondsPerMillisecond = 1000n;
 
+declare const timeoutIdentifierBrand: unique symbol;
+declare const intervalIdentifierBrand: unique symbol;
+
+export type TimeoutIdentifier = {
+    readonly [timeoutIdentifierBrand]: 'TimeoutIdentifier';
+};
+
+export type IntervalIdentifier = {
+    readonly [intervalIdentifierBrand]: 'IntervalIdentifier';
+};
+
 export type Clock = {
     readonly currentDate: Date;
     readonly currentUnixEpochMilliseconds: number;
@@ -10,52 +21,59 @@ export type Clock = {
         handler: (...handlerArguments: HandlerArguments) => void,
         delayInMilliseconds: number,
         ...handlerArguments: HandlerArguments
-    ) => ReturnType<typeof globalThis.setTimeout>;
-    readonly clearTimeout: (timeoutIdentifier: ReturnType<typeof globalThis.setTimeout>) => void;
+    ) => TimeoutIdentifier;
+    readonly clearTimeout: (timeoutIdentifier: TimeoutIdentifier) => void;
     readonly setInterval: <HandlerArguments extends readonly unknown[]>(
         handler: (...handlerArguments: HandlerArguments) => void,
         delayInMilliseconds: number,
         ...handlerArguments: HandlerArguments
-    ) => ReturnType<typeof globalThis.setInterval>;
-    readonly clearInterval: (intervalIdentifier: ReturnType<typeof globalThis.setInterval>) => void;
+    ) => IntervalIdentifier;
+    readonly clearInterval: (intervalIdentifier: IntervalIdentifier) => void;
+};
+
+export type ClockDependencies = {
+    readonly currentDate: () => Date;
+    readonly currentUnixEpochMilliseconds: () => number;
+    readonly monotonicTimeOriginMilliseconds: number;
+    readonly currentMonotonicMilliseconds: () => number;
+    readonly setTimeout: Clock['setTimeout'];
+    readonly clearTimeout: Clock['clearTimeout'];
+    readonly setInterval: Clock['setInterval'];
+    readonly clearInterval: Clock['clearInterval'];
 };
 
 function millisecondsToMicroseconds(milliseconds: number): bigint {
     return BigInt(Math.floor(milliseconds * Number(microsecondsPerMillisecond)));
 }
 
-function performanceNowInMicroseconds(): bigint {
-    return BigInt(Math.floor(globalThis.performance.now() * Number(microsecondsPerMillisecond)));
-}
-
-export function createClock(): Clock {
+export function createClock(dependencies: ClockDependencies): Clock {
     return {
         get currentDate() {
-            return new Date();
+            return dependencies.currentDate();
         },
 
         get currentUnixEpochMilliseconds() {
-            return Date.now();
+            return dependencies.currentUnixEpochMilliseconds();
         },
 
         get currentUnixEpochMicroseconds() {
-            return millisecondsToMicroseconds(Date.now());
+            return millisecondsToMicroseconds(dependencies.currentUnixEpochMilliseconds());
         },
 
         get monotonicTimeOriginUnixEpochMicroseconds() {
-            return millisecondsToMicroseconds(globalThis.performance.timeOrigin);
+            return millisecondsToMicroseconds(dependencies.monotonicTimeOriginMilliseconds);
         },
 
         get currentMonotonicMicroseconds() {
-            return performanceNowInMicroseconds();
+            return millisecondsToMicroseconds(dependencies.currentMonotonicMilliseconds());
         },
 
-        setTimeout: globalThis.setTimeout.bind(globalThis),
+        setTimeout: dependencies.setTimeout,
 
-        clearTimeout: globalThis.clearTimeout.bind(globalThis),
+        clearTimeout: dependencies.clearTimeout,
 
-        setInterval: globalThis.setInterval.bind(globalThis),
+        setInterval: dependencies.setInterval,
 
-        clearInterval: globalThis.clearInterval.bind(globalThis)
+        clearInterval: dependencies.clearInterval
     };
 }

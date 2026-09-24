@@ -127,7 +127,7 @@ function createTimeoutController(currentMonotonicMicroseconds: CurrentMonotonicM
                 executionMonotonicMicroseconds: currentMonotonicMicroseconds() + delayInMicroseconds
             });
 
-            return timeoutIdentifier as unknown as ReturnType<typeof globalThis.setTimeout>;
+            return timeoutIdentifier as unknown as ReturnType<Clock['setTimeout']>;
         },
 
         clearTimeout(timeoutIdentifier) {
@@ -188,7 +188,7 @@ function createIntervalController(
                 nextExecutionMonotonicMicroseconds: currentMonotonicMicroseconds() + delayInMicroseconds
             });
 
-            return intervalIdentifier as unknown as ReturnType<typeof globalThis.setInterval>;
+            return intervalIdentifier as unknown as ReturnType<Clock['setInterval']>;
         },
 
         clearInterval(intervalIdentifier) {

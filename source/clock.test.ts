@@ -1,167 +1,172 @@
 import assert from 'node:assert';
-import timers from 'node:timers/promises';
 import { suite, test } from 'mocha';
 
-import { createClock } from './clock.ts';
+import { createClock, type ClockDependencies } from './clock.ts';
+
+type TimeoutInvocation = {
+    readonly context: unknown;
+    readonly handler: unknown;
+    readonly delayInMilliseconds: number;
+    readonly handlerArguments: readonly unknown[];
+};
+
+type IntervalInvocation = {
+    readonly context: unknown;
+    readonly handler: unknown;
+    readonly delayInMilliseconds: number;
+    readonly handlerArguments: readonly unknown[];
+};
+
+type ClearTimeoutInvocation = {
+    readonly context: unknown;
+    readonly timeoutIdentifier: ReturnType<ClockDependencies['setTimeout']>;
+};
+
+type ClearIntervalInvocation = {
+    readonly context: unknown;
+    readonly intervalIdentifier: ReturnType<ClockDependencies['setInterval']>;
+};
+
+function createClockDependencies(): ClockDependencies {
+    return {
+        currentDate() {
+            return new Date(1_704_067_200_123);
+        },
+        currentUnixEpochMilliseconds() {
+            return 1_704_067_200_123.456;
+        },
+        monotonicTimeOriginMilliseconds: 5000.456,
+        currentMonotonicMilliseconds() {
+            return 123.456;
+        },
+        setTimeout() {
+            return 1 as unknown as ReturnType<ClockDependencies['setTimeout']>;
+        },
+        clearTimeout() {
+            return undefined;
+        },
+        setInterval() {
+            return 2 as unknown as ReturnType<ClockDependencies['setInterval']>;
+        },
+        clearInterval() {
+            return undefined;
+        }
+    };
+}
 
 suite('clock', () => {
-    test('returns the current Unix epoch timestamp in milliseconds', function () {
-        const lowerTimestampBound = Date.now();
-        const clock = createClock();
+    test('returns wall time from dependencies', function () {
+        const clock = createClock(createClockDependencies());
 
-        const actualCurrentUnixEpochMilliseconds = clock.currentUnixEpochMilliseconds;
-
-        const upperTimestampBound = Date.now();
-        assert.strictEqual(typeof actualCurrentUnixEpochMilliseconds, 'number');
-        assert.strictEqual(actualCurrentUnixEpochMilliseconds >= lowerTimestampBound, true);
-        assert.strictEqual(actualCurrentUnixEpochMilliseconds <= upperTimestampBound, true);
+        assert.partialDeepStrictEqual(clock, {
+            currentUnixEpochMicroseconds: 1_704_067_200_123_456n,
+            currentUnixEpochMilliseconds: 1_704_067_200_123.456
+        });
+        assert.strictEqual(clock.currentDate.getTime(), 1_704_067_200_123);
     });
 
-    test('returns the current Unix epoch timestamp in microseconds', function () {
-        const lowerTimestampBound = BigInt(Date.now()) * 1000n;
-        const clock = createClock();
+    test('returns monotonic time from dependencies', function () {
+        const clock = createClock(createClockDependencies());
 
-        const actualCurrentUnixEpochMicroseconds = clock.currentUnixEpochMicroseconds;
-
-        const upperTimestampBound = BigInt(Date.now()) * 1000n;
-        assert.strictEqual(typeof actualCurrentUnixEpochMicroseconds, 'bigint');
-        assert.strictEqual(actualCurrentUnixEpochMicroseconds >= lowerTimestampBound, true);
-        assert.strictEqual(actualCurrentUnixEpochMicroseconds <= upperTimestampBound, true);
-        assert.strictEqual(actualCurrentUnixEpochMicroseconds % 1000n, 0n);
+        assert.partialDeepStrictEqual(clock, {
+            currentMonotonicMicroseconds: 123_456n,
+            monotonicTimeOriginUnixEpochMicroseconds: 5_000_456n
+        });
     });
 
-    test('returns a new current date instance', async function () {
-        const clock = createClock();
-
-        const firstCurrentDate = clock.currentDate;
-        await timers.setTimeout(1);
-        const secondCurrentDate = clock.currentDate;
-
-        assert.notStrictEqual(firstCurrentDate, secondCurrentDate);
-        assert.strictEqual(secondCurrentDate.getTime() >= firstCurrentDate.getTime(), true);
-    });
-
-    test('returns monotonic time origin in Unix epoch microseconds', function () {
-        const clock = createClock();
-        const expectedTimeOrigin = BigInt(Math.floor(globalThis.performance.timeOrigin * 1000));
-
-        assert.strictEqual(clock.monotonicTimeOriginUnixEpochMicroseconds, expectedTimeOrigin);
-    });
-
-    test('returns current monotonic time in microseconds', function () {
-        const lowerTimestampBound = BigInt(Math.floor(globalThis.performance.now() * 1000));
-        const clock = createClock();
-
-        const actualCurrentMonotonicMicroseconds = clock.currentMonotonicMicroseconds;
-
-        const upperTimestampBound = BigInt(Math.floor(globalThis.performance.now() * 1000));
-        assert.strictEqual(typeof actualCurrentMonotonicMicroseconds, 'bigint');
-        assert.strictEqual(actualCurrentMonotonicMicroseconds >= lowerTimestampBound, true);
-        assert.strictEqual(actualCurrentMonotonicMicroseconds <= upperTimestampBound, true);
-    });
-
-    test('binds setTimeout to globalThis', () => {
-        const originalSetTimeout = globalThis.setTimeout;
-        const timeoutIdentifier = 123 as unknown as ReturnType<typeof globalThis.setTimeout>;
-        const invocationContexts: unknown[] = [];
-
-        function setTimeoutStub(this: unknown) {
-            invocationContexts.push(this);
+    test('delegates timeout scheduling to dependencies', function () {
+        const setTimeoutCalls: TimeoutInvocation[] = [];
+        const clearTimeoutCalls: ClearTimeoutInvocation[] = [];
+        const timeoutIdentifier = 123 as unknown as ReturnType<ClockDependencies['setTimeout']>;
+        function timeoutHandler(value: string): void {
+            assert.strictEqual(value, 'payload');
+        }
+        function setTimeoutDependency<HandlerArguments extends readonly unknown[]>(
+            this: unknown,
+            handler: (...handlerArguments: HandlerArguments) => void,
+            delayInMilliseconds: number,
+            ...handlerArguments: HandlerArguments
+        ): ReturnType<ClockDependencies['setTimeout']> {
+            setTimeoutCalls.push({ context: this, handler, delayInMilliseconds, handlerArguments });
             return timeoutIdentifier;
         }
-
-        globalThis.setTimeout = setTimeoutStub as unknown as typeof globalThis.setTimeout;
-
-        try {
-            const clock = createClock();
-
-            const actualTimeoutIdentifier = clock.setTimeout(function () {
-                return undefined;
-            }, 1);
-
-            assert.strictEqual(actualTimeoutIdentifier, timeoutIdentifier);
-            assert.strictEqual(invocationContexts[0], globalThis);
-        } finally {
-            globalThis.setTimeout = originalSetTimeout;
+        function clearTimeoutDependency(
+            this: unknown,
+            providedTimeoutIdentifier: ReturnType<ClockDependencies['setTimeout']>
+        ): void {
+            clearTimeoutCalls.push({ context: this, timeoutIdentifier: providedTimeoutIdentifier });
         }
+        const clock = createClock({
+            ...createClockDependencies(),
+            setTimeout: setTimeoutDependency,
+            clearTimeout: clearTimeoutDependency
+        });
+
+        const actualTimeoutIdentifier = clock.setTimeout(timeoutHandler, 100, 'payload');
+        clock.clearTimeout(timeoutIdentifier);
+
+        assert.strictEqual(actualTimeoutIdentifier, timeoutIdentifier);
+        assert.deepStrictEqual(setTimeoutCalls, [
+            {
+                context: clock,
+                delayInMilliseconds: 100,
+                handler: timeoutHandler,
+                handlerArguments: [ 'payload' ]
+            }
+        ]);
+        assert.deepStrictEqual(clearTimeoutCalls, [
+            {
+                context: clock,
+                timeoutIdentifier
+            }
+        ]);
     });
 
-    test('binds clearTimeout to globalThis', () => {
-        const originalClearTimeout = globalThis.clearTimeout;
-        const timeoutIdentifier = 123 as unknown as ReturnType<typeof globalThis.setTimeout>;
-        const invocationContexts: unknown[] = [];
-        const actualTimeoutIdentifiers: ReturnType<typeof globalThis.setTimeout>[] = [];
-
-        function clearTimeoutStub(this: unknown, providedTimeoutIdentifier: ReturnType<typeof globalThis.setTimeout>) {
-            invocationContexts.push(this);
-            actualTimeoutIdentifiers.push(providedTimeoutIdentifier);
+    test('delegates interval scheduling to dependencies', function () {
+        const setIntervalCalls: IntervalInvocation[] = [];
+        const clearIntervalCalls: ClearIntervalInvocation[] = [];
+        const intervalIdentifier = 456 as unknown as ReturnType<ClockDependencies['setInterval']>;
+        function intervalHandler(value: string): void {
+            assert.strictEqual(value, 'payload');
         }
-
-        globalThis.clearTimeout = clearTimeoutStub as unknown as typeof globalThis.clearTimeout;
-
-        try {
-            const clock = createClock();
-
-            clock.clearTimeout(timeoutIdentifier);
-
-            assert.strictEqual(invocationContexts[0], globalThis);
-            assert.deepStrictEqual(actualTimeoutIdentifiers, [ timeoutIdentifier ]);
-        } finally {
-            globalThis.clearTimeout = originalClearTimeout;
-        }
-    });
-
-    test('binds setInterval to globalThis', () => {
-        const originalSetInterval = globalThis.setInterval;
-        const intervalIdentifier = 123 as unknown as ReturnType<typeof globalThis.setInterval>;
-        const invocationContexts: unknown[] = [];
-
-        function setIntervalStub(this: unknown) {
-            invocationContexts.push(this);
+        function setIntervalDependency<HandlerArguments extends readonly unknown[]>(
+            this: unknown,
+            handler: (...handlerArguments: HandlerArguments) => void,
+            delayInMilliseconds: number,
+            ...handlerArguments: HandlerArguments
+        ): ReturnType<ClockDependencies['setInterval']> {
+            setIntervalCalls.push({ context: this, handler, delayInMilliseconds, handlerArguments });
             return intervalIdentifier;
         }
-
-        globalThis.setInterval = setIntervalStub as unknown as typeof globalThis.setInterval;
-
-        try {
-            const clock = createClock();
-
-            const actualIntervalIdentifier = clock.setInterval(function () {
-                return undefined;
-            }, 1);
-
-            assert.strictEqual(actualIntervalIdentifier, intervalIdentifier);
-            assert.strictEqual(invocationContexts[0], globalThis);
-        } finally {
-            globalThis.setInterval = originalSetInterval;
-        }
-    });
-
-    test('binds clearInterval to globalThis', () => {
-        const originalClearInterval = globalThis.clearInterval;
-        const intervalIdentifier = 123 as unknown as ReturnType<typeof globalThis.setInterval>;
-        const invocationContexts: unknown[] = [];
-        const actualIntervalIdentifiers: ReturnType<typeof globalThis.setInterval>[] = [];
-
-        function clearIntervalStub(
+        function clearIntervalDependency(
             this: unknown,
-            providedIntervalIdentifier: ReturnType<typeof globalThis.setInterval>
-        ) {
-            invocationContexts.push(this);
-            actualIntervalIdentifiers.push(providedIntervalIdentifier);
+            providedIntervalIdentifier: ReturnType<ClockDependencies['setInterval']>
+        ): void {
+            clearIntervalCalls.push({ context: this, intervalIdentifier: providedIntervalIdentifier });
         }
+        const clock = createClock({
+            ...createClockDependencies(),
+            setInterval: setIntervalDependency,
+            clearInterval: clearIntervalDependency
+        });
 
-        globalThis.clearInterval = clearIntervalStub as unknown as typeof globalThis.clearInterval;
+        const actualIntervalIdentifier = clock.setInterval(intervalHandler, 200, 'payload');
+        clock.clearInterval(intervalIdentifier);
 
-        try {
-            const clock = createClock();
-
-            clock.clearInterval(intervalIdentifier);
-
-            assert.strictEqual(invocationContexts[0], globalThis);
-            assert.deepStrictEqual(actualIntervalIdentifiers, [ intervalIdentifier ]);
-        } finally {
-            globalThis.clearInterval = originalClearInterval;
-        }
+        assert.strictEqual(actualIntervalIdentifier, intervalIdentifier);
+        assert.deepStrictEqual(setIntervalCalls, [
+            {
+                context: clock,
+                delayInMilliseconds: 200,
+                handler: intervalHandler,
+                handlerArguments: [ 'payload' ]
+            }
+        ]);
+        assert.deepStrictEqual(clearIntervalCalls, [
+            {
+                context: clock,
+                intervalIdentifier
+            }
+        ]);
     });
 });

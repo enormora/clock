@@ -5,67 +5,51 @@ type TemporalInstant = {
     readonly epochNanoseconds: bigint;
 };
 
-type TemporalClockApi = {
-    readonly Now: {
-        readonly instant: () => TemporalInstant;
-    };
+export type TemporalClockDependencies = {
+    readonly currentInstant: () => TemporalInstant;
+    readonly monotonicTimeOriginMilliseconds: number;
+    readonly currentMonotonicMilliseconds: () => number;
+    readonly setTimeout: Clock['setTimeout'];
+    readonly clearTimeout: Clock['clearTimeout'];
+    readonly setInterval: Clock['setInterval'];
+    readonly clearInterval: Clock['clearInterval'];
 };
 
 const microsecondsPerMillisecond = 1000;
 const nanosecondsPerMicrosecond = 1000n;
 
-function readTemporalClockApi(): TemporalClockApi {
-    const temporalClockApi = Reflect.get(globalThis, 'Temporal') as unknown;
-
-    if (temporalClockApi === undefined) {
-        throw new ReferenceError('Temporal is not available');
-    }
-
-    return temporalClockApi as TemporalClockApi;
+function millisecondsToMicroseconds(milliseconds: number): bigint {
+    return BigInt(Math.floor(milliseconds * microsecondsPerMillisecond));
 }
 
-function readCurrentInstant(): TemporalInstant {
-    return readTemporalClockApi().Now.instant();
-}
-
-function currentPerformanceMicroseconds(): bigint {
-    return BigInt(Math.floor(globalThis.performance.now() * microsecondsPerMillisecond));
-}
-
-function performanceTimeOriginMicroseconds(): bigint {
-    return BigInt(Math.floor(globalThis.performance.timeOrigin * microsecondsPerMillisecond));
-}
-
-export function createTemporalClock(): Clock {
-    readTemporalClockApi();
-
+export function createTemporalClock(dependencies: TemporalClockDependencies): Clock {
     return {
         get currentDate() {
-            return new Date(readCurrentInstant().epochMilliseconds);
+            return new Date(dependencies.currentInstant().epochMilliseconds);
         },
 
         get currentUnixEpochMilliseconds() {
-            return readCurrentInstant().epochMilliseconds;
+            return dependencies.currentInstant().epochMilliseconds;
         },
 
         get currentUnixEpochMicroseconds() {
-            return readCurrentInstant().epochNanoseconds / nanosecondsPerMicrosecond;
+            return dependencies.currentInstant().epochNanoseconds / nanosecondsPerMicrosecond;
         },
 
         get monotonicTimeOriginUnixEpochMicroseconds() {
-            return performanceTimeOriginMicroseconds();
+            return millisecondsToMicroseconds(dependencies.monotonicTimeOriginMilliseconds);
         },
 
         get currentMonotonicMicroseconds() {
-            return currentPerformanceMicroseconds();
+            return millisecondsToMicroseconds(dependencies.currentMonotonicMilliseconds());
         },
 
-        setTimeout: globalThis.setTimeout.bind(globalThis),
+        setTimeout: dependencies.setTimeout,
 
-        clearTimeout: globalThis.clearTimeout.bind(globalThis),
+        clearTimeout: dependencies.clearTimeout,
 
-        setInterval: globalThis.setInterval.bind(globalThis),
+        setInterval: dependencies.setInterval,
 
-        clearInterval: globalThis.clearInterval.bind(globalThis)
+        clearInterval: dependencies.clearInterval
     };
 }
