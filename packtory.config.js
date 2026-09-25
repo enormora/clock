@@ -87,7 +87,26 @@ export async function buildConfig() {
         ...registrySettings === undefined ? {} : { registrySettings },
         changelog: {
             packageTagFormat: '{packageName}@{version}',
+            prLog: {
+                ignoredLabels: [ 'release' ]
+            },
             outputs: [ { kind: 'repository-file', path: 'CHANGELOG.md' }, { kind: 'github-release' } ]
+        },
+        releasePullRequest: {
+            branch: 'release/clock',
+            body: 'Updates CHANGELOG.md for the next @enormora/clock release.',
+            githubActionsCi: {
+                trigger: 'workflow-dispatch',
+                workflowFile: 'continuous-integration.yml',
+                requiredStatusContexts: [
+                    'Tests with Node.js v24',
+                    'Tests with Node.js v26',
+                    'Release PR policy',
+                    'Workflow security analysis'
+                ]
+            },
+            label: 'release',
+            title: 'Prepare release'
         },
         commonPackageSettings: {
             sourcesFolder,
