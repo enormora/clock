@@ -34,6 +34,21 @@ const packageInterface = {
 };
 
 /**
+ * @param {string} packageName
+ * @returns {NonNullable<import('@packtory/cli').PacktoryConfig['releasePullRequest']>}
+ */
+function createReleasePullRequestSettings(packageName) {
+    return {
+        branch: 'release/clock',
+        label: 'release',
+        title: 'Prepare release',
+        body: `Updates CHANGELOG.md for the next ${packageName} release.`,
+        commitSubject: 'Release packages',
+        defaultBranch: 'main'
+    };
+}
+
+/**
  * @param {NodeJS.ProcessEnv} environmentVariables
  * @returns {import('@packtory/cli').PacktoryConfig['registrySettings']}
  */
@@ -89,6 +104,7 @@ export async function buildConfig() {
             packageTagFormat: '{packageName}@{version}',
             outputs: [ { kind: 'repository-file', path: 'CHANGELOG.md' }, { kind: 'github-release' } ]
         },
+        releasePullRequest: createReleasePullRequestSettings(packageJson.name),
         commonPackageSettings: {
             sourcesFolder,
             mainPackageJson: packageJson,

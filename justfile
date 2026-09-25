@@ -36,7 +36,7 @@ changelog: compile
     packtory changelog
 
 prepare-release: compile
-    packtory release --write-changelog --commit --no-dry-run
+    packtory release-pr maintain --no-dry-run
 
 publish-release: compile
     packtory release --publish --tag --push --github-release --no-dry-run
