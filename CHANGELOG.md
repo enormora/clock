@@ -1,3 +1,9 @@
+## @enormora/clock 0.0.3 (September 25, 2026)
+
+### Documentation
+
+* Remove not needed section from README ([#156](https://github.com/enormora/clock/pull/156))
+
 ## @enormora/clock 0.0.2 (September 25, 2026)
 
 ### Code Refactoring
