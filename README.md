@@ -83,7 +83,9 @@ type Session = {
 };
 
 export function isSessionExpired(clock: Clock, session: Session): boolean {
-    return clock.currentUnixEpochMilliseconds >= session.expiresAtUnixEpochMilliseconds;
+    return (
+        clock.currentUnixEpochMilliseconds >= session.expiresAtUnixEpochMilliseconds
+    );
 }
 ```
 
@@ -225,7 +227,9 @@ export type Clock = {
 
 ```ts
 export type DeterministicClock = Clock & {
-    readonly setCurrentUnixEpochMicroseconds: (nextUnixEpochMicroseconds: bigint) => void;
+    readonly setCurrentUnixEpochMicroseconds: (
+        nextUnixEpochMicroseconds: bigint
+    ) => void;
     readonly advanceByMicroseconds: (delayInMicroseconds: bigint) => void;
     readonly advanceByMilliseconds: (delayInMilliseconds: number) => void;
 };
@@ -243,69 +247,4 @@ export function createTemporalClock(): Clock;
 export function createDeterministicClock(options: {
     readonly initialUnixEpochMicroseconds: bigint;
 }): DeterministicClock;
-```
-
-## Development
-
-Install dependencies:
-
-```sh
-npm clean-install
-```
-
-Compile:
-
-```sh
-just compile
-```
-
-Run lint checks:
-
-```sh
-just lint
-```
-
-Run tests:
-
-```sh
-just test
-```
-
-Run a Packtory dry-run:
-
-```sh
-just packtory-dry-run
-```
-
-## Publishing
-
-Pull requests that should appear in the changelog need exactly one changelog label. Supported labels:
-
-- `breaking`
-- `bug`
-- `feature`
-- `enhancement`
-- `documentation`
-- `upgrade`
-- `refactor`
-- `build`
-
-The package is released through a release pull request:
-
-1. Go to GitHub Actions -> Release -> Run workflow.
-2. The workflow creates or updates a `Prepare release` pull request with the generated `CHANGELOG.md` changes.
-3. Review and merge the release pull request through the normal merge queue.
-4. After the release pull request is merged, the publish workflow publishes to npm, pushes the package tag, and creates
-   the GitHub Release.
-
-The dry-run command validates the package shape without publishing.
-
-```sh
-just packtory-dry-run
-```
-
-Inspect the next release plan:
-
-```sh
-just release-plan
 ```
