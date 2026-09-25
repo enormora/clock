@@ -1,9 +1,13 @@
 // @ts-check
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 
+const executeFile = promisify(execFile);
 const projectFolder = process.cwd();
 const sourcesFolder = path.join(projectFolder, 'target/build/source');
+const firstClockReleaseBaseRef = '5fd04006dc50574f6b46270bd17a18cf7a36df9f';
 
 const packageRoots = {
     main: {
@@ -33,9 +37,6 @@ const packageInterface = {
     ]
 };
 
-/**
- * @returns {NonNullable<import('@packtory/cli').PacktoryConfig['releasePullRequest']>}
- */
 function createReleasePullRequestSettings() {
     return {
         branch: 'release/clock',
@@ -56,10 +57,15 @@ function createReleasePullRequestSettings() {
     };
 }
 
-/**
- * @param {NodeJS.ProcessEnv} environmentVariables
- * @returns {import('@packtory/cli').PacktoryConfig['registrySettings']}
- */
+export function resolveChangelogBaseRef(packageTags, fallbackRef) {
+    return packageTags.trim() === '' ? fallbackRef.trim() : undefined;
+}
+
+async function readChangelogBaseRef(packageName) {
+    const { stdout: packageTags } = await executeFile('git', [ 'tag', '--list', `${packageName}@*` ]);
+    return resolveChangelogBaseRef(packageTags, firstClockReleaseBaseRef);
+}
+
 export function resolveRegistrySettingsForEnvironment(environmentVariables) {
     const npmToken = environmentVariables.NPM_TOKEN;
 
@@ -84,10 +90,6 @@ export function resolveRegistrySettingsForEnvironment(environmentVariables) {
     return undefined;
 }
 
-/**
- * @param {NodeJS.ProcessEnv} environmentVariables
- * @returns {NonNullable<NonNullable<import('@packtory/cli').PacktoryConfig['commonPackageSettings']>['publishSettings']>}
- */
 export function resolvePublishSettingsForEnvironment(environmentVariables) {
     return {
         access: 'public',
@@ -95,9 +97,6 @@ export function resolvePublishSettingsForEnvironment(environmentVariables) {
     };
 }
 
-/**
- * @returns {Promise<import('@packtory/cli').PacktoryConfig>}
- */
 export async function buildConfig() {
     const packageJsonContent = await fs.readFile(path.join(projectFolder, 'package.json'), { encoding: 'utf8' });
     const packageJson = JSON.parse(packageJsonContent);
@@ -109,10 +108,9 @@ export async function buildConfig() {
     return {
         ...registrySettings === undefined ? {} : { registrySettings },
         changelog: {
+            explicitBaseRef: await readChangelogBaseRef(packageJson.name),
             packageTagFormat: '{packageName}@{version}',
-            prLog: {
-                ignoredLabels: [ 'release' ]
-            },
+            prLog: { ignoredLabels: [ 'release' ] },
             outputs: [ { kind: 'repository-file', path: 'CHANGELOG.md' }, { kind: 'github-release' } ]
         },
         releasePullRequest: createReleasePullRequestSettings(),
