@@ -34,6 +34,29 @@ const packageInterface = {
 };
 
 /**
+ * @returns {NonNullable<import('@packtory/cli').PacktoryConfig['releasePullRequest']>}
+ */
+function createReleasePullRequestSettings() {
+    return {
+        branch: 'release/clock',
+        // eslint-disable-next-line @cspell/spellchecker -- Preserve the package scope in the PR body.
+        body: 'Updates CHANGELOG.md for the next @enormora/clock release.',
+        githubActionsCi: {
+            trigger: 'workflow-dispatch',
+            workflowFile: 'continuous-integration.yml',
+            requiredStatusContexts: [
+                'Tests with Node.js v24',
+                'Tests with Node.js v26',
+                'Release PR policy',
+                'Workflow security analysis'
+            ]
+        },
+        label: 'release',
+        title: 'Prepare release'
+    };
+}
+
+/**
  * @param {NodeJS.ProcessEnv} environmentVariables
  * @returns {import('@packtory/cli').PacktoryConfig['registrySettings']}
  */
@@ -92,22 +115,7 @@ export async function buildConfig() {
             },
             outputs: [ { kind: 'repository-file', path: 'CHANGELOG.md' }, { kind: 'github-release' } ]
         },
-        releasePullRequest: {
-            branch: 'release/clock',
-            body: 'Updates CHANGELOG.md for the next @enormora/clock release.',
-            githubActionsCi: {
-                trigger: 'workflow-dispatch',
-                workflowFile: 'continuous-integration.yml',
-                requiredStatusContexts: [
-                    'Tests with Node.js v24',
-                    'Tests with Node.js v26',
-                    'Release PR policy',
-                    'Workflow security analysis'
-                ]
-            },
-            label: 'release',
-            title: 'Prepare release'
-        },
+        releasePullRequest: createReleasePullRequestSettings(),
         commonPackageSettings: {
             sourcesFolder,
             mainPackageJson: packageJson,
