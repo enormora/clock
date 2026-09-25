@@ -1,13 +1,9 @@
 // @ts-check
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 
-const executeFile = promisify(execFile);
 const projectFolder = process.cwd();
 const sourcesFolder = path.join(projectFolder, 'target/build/source');
-const firstClockReleaseBaseRef = '5fd04006dc50574f6b46270bd17a18cf7a36df9f';
 
 const packageRoots = {
     main: {
@@ -57,15 +53,6 @@ function createReleasePullRequestSettings() {
     };
 }
 
-export function resolveChangelogBaseRef(packageTags, fallbackRef) {
-    return packageTags.trim() === '' ? fallbackRef.trim() : undefined;
-}
-
-async function readChangelogBaseRef(packageName) {
-    const { stdout: packageTags } = await executeFile('git', [ 'tag', '--list', `${packageName}@*` ]);
-    return resolveChangelogBaseRef(packageTags, firstClockReleaseBaseRef);
-}
-
 export function resolveRegistrySettingsForEnvironment(environmentVariables) {
     const npmToken = environmentVariables.NPM_TOKEN;
 
@@ -108,7 +95,6 @@ export async function buildConfig() {
     return {
         ...registrySettings === undefined ? {} : { registrySettings },
         changelog: {
-            explicitBaseRef: await readChangelogBaseRef(packageJson.name),
             packageTagFormat: '{packageName}@{version}',
             prLog: { ignoredLabels: [ 'release' ] },
             outputs: [ { kind: 'repository-file', path: 'CHANGELOG.md' }, { kind: 'github-release' } ]
