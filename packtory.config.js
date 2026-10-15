@@ -7,19 +7,19 @@ const sourcesFolder = path.join(projectFolder, 'target/build/source');
 
 const packageRoots = {
     main: {
-        js: 'index.js',
+        javaScript: 'index.js',
         declarationFile: 'index.d.ts'
     },
     clock: {
-        js: 'clock.entry-point.js',
+        javaScript: 'clock.entry-point.js',
         declarationFile: 'clock.entry-point.d.ts'
     },
     temporalClock: {
-        js: 'temporal-clock.entry-point.js',
+        javaScript: 'temporal-clock.entry-point.js',
         declarationFile: 'temporal-clock.entry-point.d.ts'
     },
     deterministicClock: {
-        js: 'deterministic-clock.js',
+        javaScript: 'deterministic-clock.js',
         declarationFile: 'deterministic-clock.d.ts'
     }
 };
@@ -38,7 +38,7 @@ function createReleasePullRequestSettings() {
         branch: 'release/clock',
         // eslint-disable-next-line @cspell/spellchecker -- Preserve the package scope in the PR body.
         body: 'Updates CHANGELOG.md for the next @enormora/clock release.',
-        githubActionsCi: {
+        githubActionsContinuousIntegration: {
             trigger: 'workflow-dispatch',
             workflowFile: 'continuous-integration.yml',
             requiredStatusContexts: [
@@ -58,7 +58,7 @@ export function resolveRegistrySettingsForEnvironment(environmentVariables) {
 
     if (npmToken !== undefined && npmToken !== '') {
         return {
-            auth: {
+            authentication: {
                 type: 'bearer-token',
                 token: npmToken
             }
@@ -67,8 +67,8 @@ export function resolveRegistrySettingsForEnvironment(environmentVariables) {
 
     if (environmentVariables.GITHUB_ACTIONS === 'true') {
         return {
-            auth: {
-                type: 'npm-oidc',
+            authentication: {
+                type: 'npm-open-identity-connect',
                 provider: 'github-actions'
             }
         };
@@ -77,14 +77,58 @@ export function resolveRegistrySettingsForEnvironment(environmentVariables) {
     return undefined;
 }
 
-export function resolvePublishSettingsForEnvironment(environmentVariables) {
+/**
+@returns {NonNullable<import('@packtory/cli').PacktoryConfiguration['changelog']>}
+*/
+function createChangelogSettings() {
     return {
-        access: 'public',
-        ...environmentVariables.GITHUB_ACTIONS === 'true' ? { provenance: { type: 'auto' } } : {}
+        packageTagFormat: '{packageName}@{version}',
+        pullRequestLog: {
+            ignoredLabels: [ 'release' ],
+            collapseRules: [
+                {
+                    label: 'upgrade',
+                    pattern: '^(?<prefix>⬆️ )?Update dependency (?<dependency>.+?) from (?<from>.+?) to (?<to>.+?)$',
+                    replace: '$<prefix>Update dependency $<dependency> from $<from> to $<to>'
+                },
+                {
+                    label: 'upgrade',
+                    pattern: '^(?<prefix>⬆️ )?Update (?:dependency )?`?(?<dependency>.+?)`? to `?(?<to>[^` ]+)`?$',
+                    replace: '$<prefix>Update dependency $<dependency> to $<to>',
+                    versionGroup: 'to'
+                },
+                {
+                    label: 'upgrade',
+                    pattern: '^(?<prefix>⬆️ )?(?<dependency>Lock file maintenance|Update (?:.+ dependencies|eslint))$',
+                    replace: '$<prefix>$<dependency>',
+                    collapse: 'same'
+                }
+            ]
+        },
+        outputs: [ { kind: 'repository-file', path: 'CHANGELOG.md' }, { kind: 'github-release' } ]
     };
 }
 
-export async function buildConfig() {
+const checks = {
+    noDevelopmentDependencyImports: { enabled: true },
+    noUnusedBundleDependencies: { enabled: true },
+    uniqueTargetPaths: { enabled: true },
+    noUnexposedExecutables: { enabled: true },
+    nodeEngineCompatibility: { enabled: true },
+    noDuplicatedFiles: { enabled: true },
+    requiredFiles: { enabled: true, files: [ 'LICENSE', 'README.md' ] },
+    typeScriptIntegrity: { enabled: true, declarations: 'all' },
+    noSideEffects: { enabled: true }
+};
+
+export function resolvePublishSettingsForEnvironment(environmentVariables) {
+    return {
+        access: 'public',
+        ...environmentVariables.GITHUB_ACTIONS === 'true' ? { provenance: { type: 'automatic' } } : {}
+    };
+}
+
+export async function buildConfiguration() {
     const packageJsonContent = await fs.readFile(path.join(projectFolder, 'package.json'), { encoding: 'utf8' });
     const packageJson = JSON.parse(packageJsonContent);
     // eslint-disable-next-line node/no-process-env -- Packtory config maps publish auth and provenance from process env.
@@ -94,18 +138,14 @@ export async function buildConfig() {
 
     return {
         ...registrySettings === undefined ? {} : { registrySettings },
-        changelog: {
-            packageTagFormat: '{packageName}@{version}',
-            prLog: { ignoredLabels: [ 'release' ] },
-            outputs: [ { kind: 'repository-file', path: 'CHANGELOG.md' }, { kind: 'github-release' } ]
-        },
+        changelog: createChangelogSettings(),
         releasePullRequest: createReleasePullRequestSettings(),
         commonPackageSettings: {
             sourcesFolder,
-            mainPackageJson: packageJson,
+            mainPackageManifest: packageJson,
             includeSourceMapFiles: true,
             publishSettings,
-            additionalPackageJsonAttributes: {
+            additionalPackageManifestAttributes: {
                 author: packageJson.author,
                 license: packageJson.license,
                 repository: packageJson.repository,
@@ -125,12 +165,13 @@ export async function buildConfig() {
         packages: [
             {
                 name: packageJson.name,
-                additionalPackageJsonAttributes: {
+                additionalPackageManifestAttributes: {
                     description: 'Explicit time and timer access for TypeScript applications'
                 },
                 roots: packageRoots,
                 packageInterface
             }
-        ]
+        ],
+        checks
     };
 }
