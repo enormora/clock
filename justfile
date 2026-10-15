@@ -36,13 +36,13 @@ changelog: compile
     packtory changelog
 
 prepare-release: compile
-    packtory release-pr maintain --no-dry-run
+    packtory release-pull-request maintain --no-dry-run
 
 validate-release-pr:
-    packtory release-pr validate
+    packtory release-pull-request validate
 
 authorize-release-publish *OPTIONS:
-    packtory release-pr authorize-publish {{OPTIONS}}
+    packtory release-pull-request authorize-publish {{OPTIONS}}
 
 publish-release: compile
     packtory release --publish --tag --push --github-release --no-dry-run
