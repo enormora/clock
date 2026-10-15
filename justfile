@@ -21,7 +21,7 @@ test-unit:
 test-unit-coverage:
     c8 just test-unit
 
-test: lint test-unit-coverage check-packages
+test: lint test-unit-coverage packtory-dry-run
 
 packtory-dry-run: compile
     packtory publish
@@ -46,7 +46,3 @@ authorize-release-publish *OPTIONS:
 
 publish-release: compile
     packtory release --publish --tag --push --github-release --no-dry-run
-
-check-packages: compile
-    rm -rf target/package-checks
-    packtory pack --all --format folder --out target/package-checks
