@@ -21,7 +21,7 @@ defaults:
 
 jobs:
     tests:
-        runs-on: ubuntu-24.04
+        runs-on: ubuntu-26.04
         permissions:
             contents: read
         strategy:
@@ -42,7 +42,7 @@ jobs:
               run: npx just test
 
     workflow-security:
-        runs-on: ubuntu-24.04
+        runs-on: ubuntu-26.04
         name: Workflow security analysis
         permissions:
             contents: read # required for actions/checkout to read the workflow source
@@ -69,7 +69,7 @@ jobs:
                   test "$count" -eq 0
 
     release-pr-policy:
-        runs-on: ubuntu-24.04
+        runs-on: ubuntu-26.04
         name: Release PR policy
         if: >
             github.event_name == 'pull_request' ||
