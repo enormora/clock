@@ -18,10 +18,10 @@
         "url": "git+ssh://git@github.com/enormora/clock.git"
     },
     "devDependencies": {
-        "@enormora/eslint-config-base": "0.0.73",
-        "@enormora/eslint-config-mocha-node-assert": "0.0.29",
-        "@enormora/eslint-config-node": "0.0.51",
-        "@enormora/eslint-config-typescript": "0.0.81",
+        "@enormora/eslint-config-base": "0.0.74",
+        "@enormora/eslint-config-mocha-node-assert": "0.0.30",
+        "@enormora/eslint-config-node": "0.0.52",
+        "@enormora/eslint-config-typescript": "0.0.82",
         "@packtory/cli": "0.0.124",
         "@types/mocha": "10.0.10",
         "@types/node": "26.6.5",
